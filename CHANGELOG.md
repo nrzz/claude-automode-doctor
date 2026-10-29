@@ -4,6 +4,9 @@ All notable changes to claude-automode-doctor are written here. The format follo
 
 ## [Unreleased]
 
+- `why` takes `--file <path>`: commands are read from a text file, one per line (blank lines and `#` comments skipped; LF or CRLF), before any given on the command line. A file that cannot be read, or holds no command, is a usage error.
+- Contributed by [@HarshRajSinghania](https://github.com/HarshRajSinghania) in [#8](https://github.com/nrzz/claude-automode-doctor/pull/8), for the good first issue [#7](https://github.com/nrzz/claude-automode-doctor/issues/7).
+
 ## [1.2.0] - 2026-10-28
 
 - `why`: accept several commands; print one block each separated by a blank line, return `{ ok, commands }` with `--json`, and exit with the worst of the verdicts.

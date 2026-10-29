@@ -137,6 +137,79 @@ test("why: several commands, the order, the exit code, and single command compat
   assert.equal(multiJson.commands[2].outcome, "prompt");
 });
 
+test("why --file: the file alone, with commands on the command line, the order, comments, blank lines and CRLF", async () => {
+  const w = world("why-file", { user: { permissions: { allow: ["Bash(git status)"], ask: ["Bash(git push *)"], deny: ["Bash(rm -rf *)"] } } });
+  const file = (name, text) => { fs.writeFileSync(path.join(w.work, name), text); return name; };
+  const block = async (command) => (await run(["why", command], w)).out;
+  const [b1, b2, b3] = [await block("git status"), await block("npm test"), await block("git push origin main")];
+
+  // the file alone: comments, blank lines and indentation are dropped, a # inside a command stays
+  const lf = file("commands.txt", "# what this project runs\ngit status\n\n   npm test   \n  # indented comment\ngit push origin main\n");
+  const alone = await run(["why", "--file", lf], w);
+  assert.equal(alone.code, 1);
+  assert.equal(alone.out, `${b1}\n${b2}\n${b3}`);
+  assert.equal((await run(["why", `--file=${lf}`], w)).out, alone.out);
+
+  // CRLF line endings give the same answer
+  const crlfFile = file("crlf.txt", "git status\r\n\r\n# note\r\nnpm test\r\ngit push origin main\r\n");
+  assert.equal((await run(["why", "--file", crlfFile], w)).out, alone.out);
+
+  // the file's commands come first, in file order, then the arguments in the order given
+  const two = file("two.txt", "npm test\ngit status\n");
+  const mixed = await run(["why", "git push origin main", "--file", two], w);
+  assert.equal(mixed.out, `${b2}\n${b1}\n${b3}`);
+  const mixedJson = (await run(["why", "git push origin main", "--file", two, "--json"], w)).json();
+  assert.deepEqual(mixedJson.commands.map((c) => c.command), ["npm test", "git status", "git push origin main"]);
+
+  // one command in all gives the single form, as without --file
+  const one = file("one.txt", "\n# only one\ngit status\n");
+  const single = await run(["why", "--file", one], w);
+  assert.equal(single.out, b1);
+  assert.equal(single.code, 0);
+  const singleJson = (await run(["why", "--file", one, "--json"], w)).json();
+  assert.equal(singleJson.command, "git status");
+  assert.equal(singleJson.commands, undefined);
+
+  // the exit code is the worst verdict, and a relative path is relative to the folder it runs in
+  assert.equal((await run(["why", "--file", file("deny.txt", "git status\nrm -rf build\n")], w)).code, 1);
+  const sub = path.join(w.work, "sub");
+  fs.mkdirSync(sub);
+  fs.writeFileSync(path.join(sub, "in-sub.txt"), "git status\n");
+  assert.match((await run(["why", "--file", "in-sub.txt"], w, { cwd: sub })).out, /command   git status\r?\n.*\r?\n\r?\nApproved without the classifier\./);
+  assert.equal((await run(["why", "--file", path.join(sub, "in-sub.txt")], w)).out, b1);
+});
+
+test("why --file: a missing file, an empty file, --file twice or without a value, and --file on another command", async () => {
+  const w = world("why-file-bad");
+  fs.writeFileSync(path.join(w.work, "empty.txt"), "");
+  fs.writeFileSync(path.join(w.work, "comments.txt"), "# nothing here\r\n\r\n  \r\n");
+  fs.writeFileSync(path.join(w.work, "one.txt"), "git status\n");
+  const bad = [
+    [["why", "--file", "missing.txt"], /--file: cannot read missing\.txt \(.*ENOENT/],
+    [["why", "--file", "."], /--file: cannot read \. \(/],
+    [["why", "--file", "empty.txt"], /--file: no command in empty\.txt/],
+    [["why", "--file", "comments.txt"], /--file: no command in comments\.txt/],
+    [["why", "--file", "one.txt", "--file", "one.txt"], /--file given twice/],
+    [["why", "--file"], /--file needs a value/],
+    [["report", "--file", "one.txt"], /--file does not belong to report/],
+    [["suggest", "--file", "one.txt"], /--file does not belong to suggest/],
+  ];
+  for (const [args, re] of bad) {
+    const r = await run(args, w);
+    assert.equal(r.code, 2, args.join(" "));
+    assert.match(r.err, re, args.join(" "));
+    assert.equal(r.out, "");
+  }
+  // an empty file is fine when a command is given on the command line
+  const ok = await run(["why", "--file", "empty.txt", "git status"], w);
+  assert.equal(ok.code, 0);
+  assert.match(ok.out, /^claude-automode-doctor .* why\n/);
+  // and the JSON form of an error stays JSON
+  const j = await run(["why", "--file", "empty.txt", "--json"], w);
+  assert.equal(j.code, 2);
+  assert.equal(j.json().ok, false);
+});
+
 test("cost: the measured sizes, who pays, and what the transcripts show", async () => {
   const w = world("cost");
   writeTranscript(w, { calls: [{ tool: "Bash", input: { command: "mytool" }, decision: "accept", reasonType: "classifier", classifierBoundary: true }, { tool: "Bash", input: { command: "mytool b" }, decision: "accept", reasonType: "classifier", serverReview: true }] });

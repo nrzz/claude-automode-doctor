@@ -97,10 +97,11 @@ Read (they change nothing):
            date, from the start of that day in UTC. Exit 1 when the classifier refused or gave no
            verdict in that window. --markdown is the short report the /automode-doctor:check skill
            hands to Claude (at most 17 lines); it always exits 0
-  why      "<command>"... [--project <dir>] [--tool Bash|PowerShell]
+  why      "<command>"... [--project <dir>] [--tool Bash|PowerShell] [--file <path>]
            whether the command goes to the classifier in auto mode, or is approved without it (read-only,
            an allow rule, a file command the mode approves), or is refused by a deny rule or asked about
-           (an ask rule, a critical path, the read block); which rule, from which file. Exit 1 when it
+           (an ask rule, a critical path, the read block); which rule, from which file. --file reads
+           commands from a text file, one per line (blank lines and # comments skipped). Exit 1 when it
            would be refused or asked about
   show     [--project <dir>]
            the merged autoMode and permissions settings with the file and line of each part, which
@@ -270,9 +271,11 @@ Refused by the classifier: 4 commands, 4 times (it read them and judged them uns
 
 ### `why`
 
-`why "<command>"... [--project <dir>] [--tool Bash|PowerShell]` runs the command through the order Claude Code follows in auto mode, without running anything: deny and ask rules, the check for a critical path, allow rules (the broad ones are dropped, and `autoMode.classifyAllShell` suspends all shell ones), read-only commands and the file commands the mode approves inside the working folders, and then the classifier. It reads the settings of the project (the current folder, or `--project`). It exits 1 when the command would be refused or asked about.
+`why "<command>"... [--project <dir>] [--tool Bash|PowerShell] [--file <path>]` runs the command through the order Claude Code follows in auto mode, without running anything: deny and ask rules, the check for a critical path, allow rules (the broad ones are dropped, and `autoMode.classifyAllShell` suspends all shell ones), read-only commands and the file commands the mode approves inside the working folders, and then the classifier. It reads the settings of the project (the current folder, or `--project`). It exits 1 when the command would be refused or asked about.
 
 - Several commands can be given: `why` prints one block per command in the order given, separated by a blank line; `--json` returns one document with a `commands` array; the exit code is the worst of the verdicts.
+
+- `--file <path>` reads the commands from a text file, one per line, each exactly as written (no shell quoting or line continuation): surrounding whitespace is dropped, and blank lines and lines starting with `#` are skipped; LF and CRLF both work, and a relative path is relative to the folder you run it in. The commands of the file come first, in file order, then the ones on the command line. A file that cannot be read, or has no command in it and none on the command line, is a usage error (exit 2); `--file` is for `why` only and can be given once.
 
 ```text
 claude-automode-doctor why "./scripts/release.sh --publish" --project /home/me/shop
@@ -662,7 +665,7 @@ It reads transcripts and settings files on your machine and sends nothing anywhe
 
 Checked on 2026-10-16 on Windows 11 with Node 24.19.0, git 2.55.0 and Claude Code 2.1.295 and 2.1.299 (every real-binary check passed on both). CI runs the unit tests on Linux, macOS and Windows with Node 20, 22 and 24 and on Linux with Node 18. It runs the real-binary checks on Linux and macOS against the npm release of Claude Code (2.1.301). All 12 jobs (10 of the unit tests, 2 of the real-binary checks) were green for the first time on commit 4e3512e, on 2026-10-16. The badges at the top show the latest runs.
 
-- **205 automated tests** (`npm test`, Node's own runner, no dependencies, about 7 seconds). `node --test` also reports each of the 7 helper files under `test/` as a passing test, on Node 20 and newer; those are not counted here. Without a Claude Code binary 151 pass on Windows and 150 on Linux and macOS, where one test of the PowerShell tool is skipped; the 54 real-binary checks below are skipped everywhere. The tests cover:
+- **207 automated tests** (`npm test`, Node's own runner, no dependencies, about 7 seconds). `node --test` also reports each of the 7 helper files under `test/` as a passing test, on Node 20 and newer; those are not counted here. Without a Claude Code binary 153 pass on Windows and 152 on Linux and macOS, where one test of the PowerShell tool is skipped; the 54 real-binary checks below are skipped everywhere. The tests cover:
   - the transcript reader and the classification of every shape the binary wrote (the 24 fixtures in `test/fixtures/`, recorded from the binary), older transcripts, resumed sessions, lines that are not JSON, folders that only share a prefix;
   - the report: counts per source, per day and per session, the window, `--session`, the refused commands, the no-verdict causes, the asked-instead calls, the requested date or day count in the Markdown summary, the 17-line cap of the markdown form;
   - the settings loader (precedence, managed drop-ins, a file that is not JSON, wrong types, paths with spaces), `show` and the lint (every finding, with the numbers measured);

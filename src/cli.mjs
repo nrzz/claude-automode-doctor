@@ -3,6 +3,7 @@
 // restore); 2 a usage error, or something that went wrong that the tool did not expect.
 import os from "node:os";
 import path from "node:path";
+import fs from "node:fs";
 import { buildCostModel, buildLintModel, buildReportModel, buildShowModel, buildSuggestModel, buildWhyModel, runRestore } from "./commands.mjs";
 import { markdownLint, markdownReport, palette, renderCost, renderLint, renderReport, renderShow, renderSuggest, renderWhy, renderWrite, strip } from "./render.mjs";
 import { VERSION } from "./version.mjs";
@@ -22,10 +23,11 @@ Read (they change nothing):
            date, from the start of that day in UTC. Exit 1 when the classifier refused or gave no
            verdict in that window. --markdown is the short report the /automode-doctor:check skill
            hands to Claude (at most 17 lines); it always exits 0
-  why      "<command>"... [--project <dir>] [--tool Bash|PowerShell]
+  why      "<command>"... [--project <dir>] [--tool Bash|PowerShell] [--file <path>]
            whether the command goes to the classifier in auto mode, or is approved without it (read-only,
            an allow rule, a file command the mode approves), or is refused by a deny rule or asked about
-           (an ask rule, a critical path, the read block); which rule, from which file. Exit 1 when it
+           (an ask rule, a critical path, the read block); which rule, from which file. --file reads
+           commands from a text file, one per line (blank lines and # comments skipped). Exit 1 when it
            would be refused or asked about
   show     [--project <dir>]
            the merged autoMode and permissions settings with the file and line of each part, which
@@ -75,7 +77,7 @@ is saved next to itself first), and never uses the network.
 class UsageError extends Error {}
 
 const COMMANDS = new Set(["report", "why", "show", "lint", "cost", "suggest", "restore"]);
-const FLAGS_WITH_VALUE = new Set(["--project", "--since", "--session", "--min", "--tool"]);
+const FLAGS_WITH_VALUE = new Set(["--project", "--since", "--session", "--min", "--tool", "--file"]);
 const FLAGS = new Set([...FLAGS_WITH_VALUE, "--user", "--local", "--write", "--dry-run", "--include-judged", "--json", "--markdown", "--no-color", "-h", "--help", "-v", "--version"]);
 
 const SINCE_USAGE = "--since needs a number of days, such as --since 7, or a date, such as --since 2026-10-01";
@@ -91,7 +93,7 @@ function asDay(value) {
 
 /** Parse argv into { command, positional, project, since, session, min, tool, user, local, write, dryRun, ... }. */
 export function parseArgs(argv) {
-  const o = { command: null, positional: [], project: null, since: null, session: null, min: null, tool: null, user: false, local: false, write: false, dryRun: false, includeJudged: false, json: false, markdown: false, help: false, version: false, noColor: false };
+  const o = { command: null, positional: [], project: null, since: null, session: null, min: null, tool: null, file: null, user: false, local: false, write: false, dryRun: false, includeJudged: false, json: false, markdown: false, help: false, version: false, noColor: false };
   for (let i = 0; i < argv.length; i++) {
     let a = argv[i];
     let inline = null;
@@ -122,6 +124,10 @@ export function parseArgs(argv) {
           o.min = Number(value);
           break;
         case "--tool": if (value !== "Bash" && value !== "PowerShell") throw new UsageError("--tool is Bash or PowerShell"); o.tool = value; break;
+        case "--file":
+          if (o.file !== null) throw new UsageError("--file given twice");
+          o.file = value;
+          break;
         case "--user": o.user = true; break;
         case "--local": o.local = true; break;
         case "--write": o.write = true; break;
@@ -179,10 +185,10 @@ export async function main(argv, io = {}) {
 
   try {
     const allowed = {
-      report: ["--since", "--session", "--markdown"], why: ["--tool"], show: [], lint: ["--markdown"], cost: ["--since"],
+      report: ["--since", "--session", "--markdown"], why: ["--tool", "--file"], show: [], lint: ["--markdown"], cost: ["--since"],
       suggest: ["--since", "--min", "--write", "--user", "--local", "--include-judged", "--dry-run"], restore: ["--user", "--local", "--dry-run"],
     }[o.command];
-    for (const [flag, on] of [["--since", o.since !== null], ["--session", o.session !== null], ["--min", o.min !== null], ["--tool", o.tool !== null], ["--user", o.user], ["--local", o.local], ["--write", o.write], ["--dry-run", o.dryRun], ["--include-judged", o.includeJudged], ["--markdown", o.markdown]]) {
+    for (const [flag, on] of [["--since", o.since !== null], ["--session", o.session !== null], ["--min", o.min !== null], ["--tool", o.tool !== null], ["--file", o.file !== null], ["--user", o.user], ["--local", o.local], ["--write", o.write], ["--dry-run", o.dryRun], ["--include-judged", o.includeJudged], ["--markdown", o.markdown]]) {
       if (on && !allowed.includes(flag)) throw new UsageError(`${flag} does not belong to ${o.command}`);
     }
     // a date only makes a window if it has already begun; the clock is io.now in tests
@@ -201,8 +207,24 @@ export async function main(argv, io = {}) {
         return m.classifier.refused + m.classifier.noVerdict > 0 ? 1 : 0;
       }
       case "why": {
-        if (o.positional.length === 0) throw new UsageError('why needs the command in quotes, as in: why "git push origin main"');
-        const models = o.positional.map((command) =>
+        let commands = [];
+        if (o.file !== null) {
+          try {
+            const content = fs.readFileSync(path.resolve(cwd, o.file), "utf8");
+            const lines = content.split(/\r?\n/);
+            for (let line of lines) {
+              line = line.trim();
+              if (line === "" || line.startsWith("#")) continue;
+              commands.push(line);
+            }
+          } catch (e) {
+            throw new UsageError(`--file: cannot read ${o.file} (${e.message})`);
+          }
+          if (commands.length === 0 && o.positional.length === 0) throw new UsageError(`--file: no command in ${o.file}`);
+        }
+        commands = commands.concat(o.positional);
+        if (commands.length === 0) throw new UsageError('why needs the command in quotes, as in: why "git push origin main"');
+        const models = commands.map((command) =>
           buildWhyModel({ ...common, project: projectDir, command, tool: o.tool || "Bash" })
         );
         if (models.length === 1) {
