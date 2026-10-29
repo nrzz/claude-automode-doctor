@@ -4,8 +4,11 @@ All notable changes to claude-automode-doctor are written here. The format follo
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-29
+
 - `why` takes `--file <path>`: commands are read from a text file, one per line (blank lines and `#` comments skipped; LF or CRLF), before any given on the command line. A file that cannot be read, or holds no command, is a usage error.
 - Contributed by [@HarshRajSinghania](https://github.com/HarshRajSinghania) in [#8](https://github.com/nrzz/claude-automode-doctor/pull/8), for the good first issue [#7](https://github.com/nrzz/claude-automode-doctor/issues/7).
+- The README's test count is the runner's again: 207 automated tests (214 with the 7 helper files), 153 passing on Windows and 152 on Linux and macOS without a binary. It had said 205 before the pull request's new tests.
 
 ## [1.2.0] - 2026-10-28
 
@@ -35,6 +38,7 @@ All notable changes to claude-automode-doctor are written here. The format follo
 - When the classifier's model answers "overloaded", Claude Code asks it five times and then your session's own model five times, and the refusal names the session's model. `cost` says so.
 - Zero tokens for the tool. The skill is user-only, adds nothing to a request that does not use it, and hands the model a report of at most 17 lines.
 
+[1.3.0]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.1.0
