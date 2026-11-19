@@ -9,7 +9,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { runCli } from "./helpers.mjs";
-import { callsOf, fakeApi, put, runClaude, sandbox, severity, skip, stage2, userText } from "./claude-sandbox.mjs";
+import { OWN_CLASSIFIER, callsOf, fakeApi, put, runClaude, sandbox, severity, skip, stage2, userText } from "./claude-sandbox.mjs";
 
 const bash = (command) => ({ tool: "Bash", input: { command, description: "probe" } });
 // the tool's own process, in the sandbox's world
@@ -26,7 +26,7 @@ test("report over a real session of six calls: one decision of each kind, counte
     stage2: (req) => (JSON.stringify(req.messages).includes("mytool deploy") ? stage2(90, "Code from External") : stage2(5)),
   });
   try {
-    const r = await runClaude(sb, api, [...ARGS, "--max-turns", "9"], { timeout: 240000 });
+    const r = await runClaude(sb, api, [...ARGS, "--max-turns", "9"], { timeout: 240000, env: OWN_CLASSIFIER });
     assert.equal(r.code, 0, r.err);
     assert.equal(callsOf(sb).length, 6, "six calls reached the model's tool results");
     // plain `report` exits 1 when the classifier refused something; --markdown always exits 0
@@ -67,7 +67,7 @@ test("suggest: two sessions in which the check gave no verdict, the allow rule i
   for (let i = 0; i < 2; i++) {
     const api = await failing();
     try {
-      const r = await runClaude(sb, api, [...ARGS, "--max-turns", "2"]);
+      const r = await runClaude(sb, api, [...ARGS, "--max-turns", "2"], { env: OWN_CLASSIFIER });
       assert.equal(r.code, 0, r.err);
       assert.equal(api.classifier().length, 2, "both stages were asked");
     } finally { await api.close(); }
@@ -97,7 +97,7 @@ test("suggest: two sessions in which the check gave no verdict, the allow rule i
   // the same command again: the binary does not ask the classifier, and runs the command
   const api = await failing();
   try {
-    const r = await runClaude(sb, api, [...ARGS, "--max-turns", "2"]);
+    const r = await runClaude(sb, api, [...ARGS, "--max-turns", "2"], { env: OWN_CLASSIFIER });
     assert.equal(r.code, 0, r.err);
     assert.equal(api.classifier().length, 0, "the rule skips the classifier");
     assert.equal(r.result.permission_denials.length, 0, "and nothing was refused");
@@ -123,7 +123,7 @@ test("from the third refusal in a row the call is asked instead, and so is every
     const sb = sandbox("rows");
     const api = await fakeApi({ calls: commands.map(bash), stage1: (req) => (refuses(req) ? severity(95) : severity(5)), stage2: (req) => (refuses(req) ? stage2(95, "Git Destructive") : stage2(5)) });
     try {
-      const r = await runClaude(sb, api, [...ARGS, "--max-turns", "12"], { timeout: 300000 });
+      const r = await runClaude(sb, api, [...ARGS, "--max-turns", "12"], { timeout: 300000, env: OWN_CLASSIFIER });
       assert.equal(r.code, 0, r.err);
       return { kinds: callsOf(sb).map((c) => c.kind), requests: api.classifier().length };
     } finally { await api.close(); }

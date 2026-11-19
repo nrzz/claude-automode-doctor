@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { DENIED_TEXT, ROOT, UNAVAILABLE_TEXT, writeTranscript } from "./helpers.mjs";
-import { claudeInfo, fakeApi, put, runClaude, sandbox, skip, textBlocks, userText } from "./claude-sandbox.mjs";
+import { atLeast, claudeInfo, fakeApi, put, runClaude, sandbox, skip, textBlocks, userText } from "./claude-sandbox.mjs";
 
 const IS_WIN = process.platform === "win32";
 const fwd = (p) => p.replace(/\\/g, "/");
@@ -105,7 +105,9 @@ test("the worst report the skill can hand over is capped at 17 lines (6 refused 
     const skillText = textBlocks(withSkill(api) || main(api)).find((b) => b.startsWith("Base directory for this skill"));
     assert.ok(skillText);
     if (/run this first/.test(skillText)) return;
-    const report = skillText.slice(skillText.indexOf("## automode-doctor report"), skillText.indexOf("In at most 10 lines"));
+    // on Windows Claude Code may append "Shell cwd was reset to <folder>" after the command's output (2.1.316 and 2.1.328 here):
+    // a line of its own, not of the report
+    const report = skillText.slice(skillText.indexOf("## automode-doctor report"), skillText.indexOf("In at most 10 lines")).replace(/^Shell cwd was reset to .*$/m, "");
     const commandText = textBlocks(withSkill(api) || main(api)).find((b) => b.includes("<command-name>/automode-doctor:check</command-name>"));
     const chars = skillText.length + (commandText ? commandText.length : 0);
     t.diagnostic(`worst case built here: ${skillText.length} characters in the skill block${commandText ? ` and ${commandText.length} in the command block` : ""}, ${report.trim().split("\n").length} lines of report, about ${Math.round(chars / 4)} tokens by characters / 4`);
@@ -193,7 +195,7 @@ test("installed from a marketplace, the plugin's own cost projection is small an
   t.diagnostic(`claude plugin details on ${claudeInfo().version}: ${always[0].replace(/\s+/g, " ")}; per component: ${row ? row[0].trim().replace(/\s+/g, " ") : "(no row)"}`);
 });
 
-test("when the shell tool is not allowed for the command, Claude Code hands the model the command line as 'run this first', and the skill text reads right that way too (Windows, PowerShell tool)", { skip: skip() || (!IS_WIN && "this is how the PowerShell tool of a Windows setup behaves here"), timeout: 180000 }, async () => {
+test("when the shell tool is not allowed for the command, Claude Code hands the model the command line as 'run this first' (to 2.1.301) or ends the turn with no request (2.1.302; from 2.1.318 the result names the command), and the skill text reads right that way too (Windows, PowerShell tool)", { skip: skip() || (!IS_WIN && "this is how the PowerShell tool of a Windows setup behaves here"), timeout: 180000 }, async (t) => {
   // a copy of the plugin whose skill has no allowed-tools line
   const copy = path.join(sandbox("copy").root, "plugin");
   for (const item of ["bin", "src", "skills", ".claude-plugin", "package.json"]) fs.cpSync(path.join(ROOT, item), path.join(copy, item), { recursive: true });
@@ -207,6 +209,16 @@ test("when the shell tool is not allowed for the command, Claude Code hands the 
   try {
     const r = await runClaude(sb, api, ["-p", "/automode-doctor:check", "--plugin-dir", copy, "--output-format", "json"], { env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: "1", CLAUDE_CODE_GIT_BASH_PATH: "C:/nonexistent/bash.exe" } });
     assert.equal(r.code, 0, r.err);
+    if (!api.requests.length) {
+      // 2.1.302: no request and no turn. To 2.1.317 the result is empty; from 2.1.318 it names the skill's command, and the reason
+      // after the colon is the PowerShell tool's ("This command requires approval", or the part that needs approval)
+      assert.ok(r.result && r.result.num_turns === 0, `no turn: ${String(r.out).slice(0, 300)}`);
+      const said = String(r.result.result ?? "");
+      if (atLeast("2.1.318")) assert.match(said, /^Shell command permission check failed for pattern "!`node "[^"]+claude-automode-doctor\.mjs" report --project "[^"]+" --markdown`": .*requires? approval/s, said.slice(0, 300));
+      else assert.equal(said, "", "an empty result");
+      t.diagnostic(`on Claude Code ${claudeInfo().number} the skill's command was not allowed: no request, num_turns 0, ${said ? `the result: ${said.slice(0, 160)}` : "an empty result"}`);
+      return;
+    }
     const skillText = textBlocks(withSkill(api) || main(api)).find((b) => b.startsWith("Base directory for this skill"));
     assert.ok(skillText, "the skill reached the model");
     assert.match(skillText, /\[run this first, exactly as written, with the PowerShell tool and use its output: `node "[^"]+claude-automode-doctor\.mjs" report --project "[^"]+" --markdown`\]\n\nIn at most 10 lines: what the classifier refused/);

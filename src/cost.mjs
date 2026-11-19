@@ -18,6 +18,7 @@ export function buildCost({ report = null } = {}) {
   const stageTwo = { stage: 2, model: m.stages.two.model, maxTokens: m.stages.two.maxTokens, systemChars: m.prompt.totalSystemChars, userChars: m.stages.two.userChars, requestChars: m.prompt.totalSystemChars + m.stages.two.userChars };
   for (const s of [stageOne, stageTwo]) { s.systemTokens = tokensOf(s.systemChars); s.requestTokens = tokensOf(s.requestChars); }
   const perCommand = {
+    when: "These are Claude Code's own classifier requests. From 2.1.319 it makes them only when CLAUDE_CODE_AUTO_MODE_SERVER=0 is set: where the server reviews the actions there are none, and where the server's check does not reach the session the actions that need it are refused (2.1.318 and earlier made these requests then).",
     requestsLow: 1, requestsHigh: 2,
     tokensLow: stageOne.requestTokens, tokensHigh: stageOne.requestTokens + stageTwo.requestTokens,
     note: `One request when stage one is sure the command is routine (it allowed severities up to ${m.stageOneClears.upTo}); two when it is not (it went on to stage two from ${m.stageOneClears.goesOnFrom}). A classifier that answers something that is not a verdict is asked up to ${m.attempts.stageOne} times at stage one and ${m.attempts.stageTwo} at stage two. A classifier model that answers with an error (overloaded) is asked ${m.attempts.stageOne} times, then your session's own model ${m.fallback.attempts} times (max_tokens ${m.fallback.maxTokens.toLocaleString("en-US")}); the refusal then names your model, not the classifier's.`,
@@ -38,7 +39,9 @@ export function buildCost({ report = null } = {}) {
       says: [
         "where the server reviews the actions as part of the session's own model requests (a direct connection to the Anthropic API), there are no separate classifier requests and no charge for them",
         "when the server's checks do not reach the session (a gateway or proxy in the way, a platform that does not have them yet), Claude Code makes its own classifier requests, and on accounts where those are billed they count toward token usage",
+        "Claude Code's own classifier requests are always made with CLAUDE_CODE_AUTO_MODE_SERVER=0, billed the same way",
       ],
+      binary: "What the binary did differs from the second line from 2.1.319: through a host that does not pass the server's check through, it made no classifier requests of its own and refused every action that needed the check (2.1.318 still made them). With CLAUDE_CODE_AUTO_MODE_SERVER=0 it made them, on every version tried.",
       source: "documentation; this tool cannot see an invoice, and the fake API cannot play a direct connection",
     },
     transcripts,

@@ -46,6 +46,19 @@ export function claudeInfo() {
 /** The value for node:test's `skip` option: false when the binary is there, else the reason. */
 export const skip = () => (claudeInfo().ok ? false : claudeInfo().reason);
 
+/** Is the binary under test this version or newer ("2.1.319")? */
+export function atLeast(v) {
+  const a = (claudeInfo().number || "0.0.0").split(".").map(Number);
+  const b = v.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((a[i] || 0) !== b[i]) return (a[i] || 0) > b[i];
+  return true;
+}
+
+// The environment that makes auto mode judge with Claude Code's own classifier requests (the two stages these checks
+// measure) rather than ask the server. Through ANTHROPIC_BASE_URL, 2.1.318 and earlier fell back to them by themselves when
+// the answer carried no review; 2.1.319 and later refuse the action instead, and use their own requests only with this.
+export const OWN_CLASSIFIER = { CLAUDE_CODE_AUTO_MODE_SERVER: "0" };
+
 /** Git Bash on Windows, so the Bash tool exists; nothing on the other systems. */
 function bashEnv() {
   if (!IS_WIN) return {};

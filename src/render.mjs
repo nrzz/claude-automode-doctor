@@ -27,7 +27,9 @@ export function wrap(text, width) {
 const pad = (s, n) => String(s).padEnd(n);
 const rpad = (s, n) => String(s).padStart(n);
 const clip = (s, n) => { const t = String(s).replace(/\s+/g, " "); return t.length > n ? `${t.slice(0, n - 3)}...` : t; };
-const SHORT_CAUSE = { unavailable: "unavailable", "server-no-verdict": "no server verdict", "stage-two-error": "stage two failed", "safety-check": "safety check", unparseable: "unreadable answer", "context-window": "too long" };
+// What to do about the commonest no-verdict cause from 2.1.319: the server's check does not reach the session
+const SERVER_OFF = "From Claude Code 2.1.319, when the server's check does not reach the session, auto mode refuses every action that needs it: Claude Code no longer falls back to classifier requests of its own. To have them judged, let the gateway or proxy pass the check through (the request's safeguards field and the answer's safeguard_results), or set CLAUDE_CODE_AUTO_MODE_SERVER=0 so that Claude Code makes its own classifier requests, which are billed where those are billed: https://code.claude.com/docs/en/auto-mode-classifier-billing";
+const SHORT_CAUSE = { "server-off": "server check off", "server-recheck": "server re-check", unavailable: "unavailable", "server-no-verdict": "no server verdict", "stage-two-error": "stage two failed", "safety-check": "safety check", unparseable: "unreadable answer", "context-window": "too long" };
 /** Why the check gave no verdict: the one cause in words, or the causes with their counts when there were several. */
 const causeLabel = (r) => {
   const kinds = Object.entries(r.causes || {}).sort((a, b) => b[1] - a[1]);
@@ -110,6 +112,7 @@ export function renderReport(m, { color = false } = {}) {
     if (m.noVerdict.length > 10) out.push(p.dim(`  ... and ${m.noVerdict.length - 10} more commands`));
     const svc = m.noVerdict.reduce((a, r) => a + r.serviceCount, 0);
     out.push(p.dim(svc === n ? "  All of them trace to the service or the connection, not to your settings." : `  ${svc} of ${n} trace to the service or the connection; the others to the conversation (a safety check, or a transcript too long for the classifier).`));
+    if (m.noVerdict.some((r) => (r.causes || {})["server-off"])) for (const l of wrap(SERVER_OFF, 96)) out.push(p.dim(`  ${l}`));
     out.push("");
   }
   for (const n of m.notes) out.push(p.dim(`Note: ${n}`));
@@ -290,6 +293,7 @@ export function renderCost(m, { color = false } = {}) {
   out.push(`measured  on Claude Code ${m.measured.version}, ${m.measured.platform}, ${m.measured.date}, against a fake API (zero tokens)`);
   out.push("");
   out.push(p.bold("One classified command"));
+  for (const l of wrap(m.perCommand.when, 96)) out.push(`  ${l}`);
   for (const s of m.stages) out.push(`  stage ${s.stage}   ${pad(s.model, 16)} max_tokens ${rpad(num(s.maxTokens), 6)}   system prompt ${num(s.systemChars)} characters (about ${num(s.systemTokens)} tokens), whole request about ${num(s.requestTokens)} tokens`);
   for (const l of wrap(m.perCommand.note, 96)) out.push(`  ${l}`);
   out.push(`  So a command costs ${m.perCommand.requestsLow} to ${m.perCommand.requestsHigh} requests, about ${num(m.perCommand.tokensLow)} to ${num(m.perCommand.tokensHigh)} input tokens by characters / 4 (an estimate, not the tokenizer's count). ${m.prompt.cached}.`);
@@ -297,6 +301,7 @@ export function renderCost(m, { color = false } = {}) {
   out.push(p.bold("Who pays") + p.dim("  (the documentation; this tool cannot see an invoice)"));
   for (const s of m.billing.says) for (const [i, l] of wrap(s, 94).entries()) out.push(`  ${i === 0 ? "- " : "  "}${l}`);
   out.push(`  ${m.billing.url}`);
+  for (const l of wrap(m.billing.binary, 96)) out.push(`  ${l}`);
   if (m.transcripts) {
     const t = m.transcripts;
     out.push("");

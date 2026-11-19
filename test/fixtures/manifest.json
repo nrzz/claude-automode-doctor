@@ -122,6 +122,18 @@
       "file": "server-skipped.jsonl",
       "calls": 1,
       "classifierRequests": 0
+    },
+    "server-recheck": {
+      "file": "server-recheck.jsonl",
+      "calls": 1,
+      "classifierRequests": 0,
+      "recordedWith": "2.1.328 (Claude Code)"
+    },
+    "server-off": {
+      "file": "server-off.jsonl",
+      "calls": 1,
+      "classifierRequests": 0,
+      "recordedWith": "2.1.328 (Claude Code)"
     }
   }
 }

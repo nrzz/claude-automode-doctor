@@ -161,7 +161,7 @@ claude-automode-doctor report --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  what auto mode decided
+claude-automode-doctor 1.4.0  what auto mode decided
 config    /home/me/.claude  (from CLAUDE_CONFIG_DIR)
 project   /home/me/shop
 window    the last 30 days (to 2026-10-16, days are UTC dates); 4 transcripts; 9 tool decisions
@@ -199,7 +199,7 @@ claude-automode-doctor report --project /home/me/shop --session ba5a5f65
 ```
 
 ```text
-claude-automode-doctor 1.3.0  what auto mode decided
+claude-automode-doctor 1.4.0  what auto mode decided
 config    /home/me/.claude  (from CLAUDE_CONFIG_DIR)
 project   /home/me/shop  (session ba5a5f65...)
 window    the last 30 days (to 2026-10-16, days are UTC dates); 4 transcripts; 1 tool decision
@@ -244,7 +244,7 @@ claude-automode-doctor report --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  what auto mode decided
+claude-automode-doctor 1.4.0  what auto mode decided
 config    /home/me/.claude  (from CLAUDE_CONFIG_DIR)
 project   /home/me/shop
 window    the last 30 days (to 2026-10-16, days are UTC dates); 1 transcript; 4 tool decisions
@@ -282,7 +282,7 @@ claude-automode-doctor why "./scripts/release.sh --publish" --project /home/me/s
 ```
 
 ```text
-claude-automode-doctor 1.3.0  why
+claude-automode-doctor 1.4.0  why
 command   ./scripts/release.sh --publish
 tool      Bash   in /home/me/shop
 
@@ -302,7 +302,7 @@ claude-automode-doctor why "python build.py" --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  why
+claude-automode-doctor 1.4.0  why
 command   python build.py
 tool      Bash   in /home/me/shop
 
@@ -322,7 +322,7 @@ claude-automode-doctor why "git status && ls src" --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  why
+claude-automode-doctor 1.4.0  why
 command   git status && ls src
 tool      Bash   in /home/me/shop
 
@@ -344,7 +344,7 @@ claude-automode-doctor why "rm -rf ~" --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  why
+claude-automode-doctor 1.4.0  why
 command   rm -rf ~
 tool      Bash   in /home/me/shop
 
@@ -366,7 +366,7 @@ claude-automode-doctor show --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  the autoMode and permissions settings, merged
+claude-automode-doctor 1.4.0  the autoMode and permissions settings, merged
 project   /home/me/shop
 config    /home/me/.claude
 
@@ -416,7 +416,7 @@ claude-automode-doctor lint --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  lint
+claude-automode-doctor 1.4.0  lint
 project   /home/me/shop
 config    /home/me/.claude
 
@@ -462,10 +462,14 @@ claude-automode-doctor cost --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  what classification costs
+claude-automode-doctor 1.4.0  what classification costs
 measured  on Claude Code 2.1.299, Windows 11, 2026-10-16, against a fake API (zero tokens)
 
 One classified command
+  These are Claude Code's own classifier requests. From 2.1.319 it makes them only when
+  CLAUDE_CODE_AUTO_MODE_SERVER=0 is set: where the server reviews the actions there are none, and
+  where the server's check does not reach the session the actions that need it are refused
+  (2.1.318 and earlier made these requests then).
   stage 1   claude-sonnet-5  max_tokens     64   system prompt 140,489 characters (about 35,122 tokens), whole request about 35,197 tokens
   stage 2   claude-sonnet-5  max_tokens  8,192   system prompt 140,489 characters (about 35,122 tokens), whole request about 35,255 tokens
   One request when stage one is sure the command is routine (it allowed severities up to 25); two
@@ -482,7 +486,13 @@ Who pays  (the documentation; this tool cannot see an invoice)
   - when the server's checks do not reach the session (a gateway or proxy in the way, a platform
     that does not have them yet), Claude Code makes its own classifier requests, and on accounts
     where those are billed they count toward token usage
+  - Claude Code's own classifier requests are always made with CLAUDE_CODE_AUTO_MODE_SERVER=0,
+    billed the same way
   https://code.claude.com/docs/en/auto-mode-classifier-billing
+  What the binary did differs from the second line from 2.1.319: through a host that does not pass
+  the server's check through, it made no classifier requests of its own and refused every action
+  that needed the check (2.1.318 still made them). With CLAUDE_CODE_AUTO_MODE_SERVER=0 it made
+  them, on every version tried.
 
 In your transcripts (the last 30 days)
   6 classifier decisions: 6 by Claude Code's own requests, 0 by the server's review
@@ -503,7 +513,7 @@ claude-automode-doctor suggest --project /home/me/shop
 ```
 
 ```text
-claude-automode-doctor 1.3.0  suggest
+claude-automode-doctor 1.4.0  suggest
 window    the last 30 days; commands the classifier turned back at least 2 times
 
 Bash(./scripts/release.sh *)   2x
@@ -549,7 +559,7 @@ claude-automode-doctor why "./scripts/release.sh --publish" --project /home/me/s
 ```
 
 ```text
-claude-automode-doctor 1.3.0  why
+claude-automode-doctor 1.4.0  why
 command   ./scripts/release.sh --publish
 tool      Bash   in /home/me/shop
 
@@ -640,7 +650,7 @@ How it reads a decision. These are the fields the binary wrote when it was made 
 | `accept` or `reject`, `reasonType` `rule`, or `toolDenialKind` `permission-rule` | permission rule |
 | `reasonType` `classifier`, or `classifierBoundary`, or `serverClassifierContext`: `accept` | classifier, allowed |
 | the same, `reject`, `toolDenialKind` `automode-blocked`, the reason in the text | classifier, refused (the category is the `[Rule Name]` in the text) |
-| the same, `automode-unavailable`, `automode-parsing-error`, or a stage-two error, a safety check, a context window that is too small, the server's review skipped | classifier, **no verdict** (with the cause; the service or the connection, except the safety check and the context window) |
+| the same, `automode-unavailable`, `automode-parsing-error`, or a stage-two error, a safety check, a context window that is too small, the server's review skipped (a re-check from 2.1.319), or no review at all (from 2.1.319: "its safety check does not run for this session") | classifier, **no verdict** (with the cause; the service or the connection, except the safety check and the context window) |
 | `reject`, `toolDenialKind` `user-rejected`, `classifierBoundary` true, no `reasonType` | classifier, refused, **asked instead** (the third refusal in a row) |
 | `reasonType` `hook` | hook |
 | `reasonType` `safetyCheck` | built-in safety check |
@@ -665,15 +675,16 @@ It reads transcripts and settings files on your machine and sends nothing anywhe
 
 Checked on 2026-10-16 on Windows 11 with Node 24.19.0, git 2.55.0 and Claude Code 2.1.295 and 2.1.299 (every real-binary check passed on both). CI runs the unit tests on Linux, macOS and Windows with Node 20, 22 and 24 and on Linux with Node 18. It runs the real-binary checks on Linux and macOS against the npm release of Claude Code (2.1.301). All 12 jobs (10 of the unit tests, 2 of the real-binary checks) were green for the first time on commit 4e3512e, on 2026-10-16. The badges at the top show the latest runs.
 
-- **207 automated tests** (`npm test`, Node's own runner, no dependencies, about 7 seconds). `node --test` also reports each of the 7 helper files under `test/` as a passing test, on Node 20 and newer; those are not counted here. Without a Claude Code binary 153 pass on Windows and 152 on Linux and macOS, where one test of the PowerShell tool is skipped; the 54 real-binary checks below are skipped everywhere. The tests cover:
-  - the transcript reader and the classification of every shape the binary wrote (the 24 fixtures in `test/fixtures/`, recorded from the binary), older transcripts, resumed sessions, lines that are not JSON, folders that only share a prefix;
+- **211 automated tests** (`npm test`, Node's own runner, no dependencies, about 7 seconds). `node --test` also reports each of the 7 helper files under `test/` as a passing test, on Node 20 and newer; those are not counted here. Without a Claude Code binary 155 pass on Windows and 154 on Linux and macOS, where one test of the PowerShell tool is skipped; the 56 real-binary checks below are skipped everywhere. The tests cover:
+  - the transcript reader and the classification of every shape the binary wrote (the 26 fixtures in `test/fixtures/`, recorded from the binary: 24 from 2.1.299 and the two of 2.1.319's new texts from 2.1.328), older transcripts, resumed sessions, lines that are not JSON, folders that only share a prefix;
   - the report: counts per source, per day and per session, the window, `--session`, the refused commands, the no-verdict causes, the asked-instead calls, the requested date or day count in the Markdown summary, the 17-line cap of the markdown form;
   - the settings loader (precedence, managed drop-ins, a file that is not JSON, wrong types, paths with spaces), `show` and the lint (every finding, with the numbers measured);
   - `why`: the order of the checks, deny and ask rules, allow rules and the ones auto mode drops (every rule shape that was put to the binary, kept or dropped as the binary did), `classifyAllShell`, critical and protected paths, additional directories, `cd` beside a Read deny rule, PowerShell on Windows, and the table of 612 commands: what `why` says for each row, without a binary;
   - `suggest` (the check that a proposed rule makes the command skip the classifier, `--write` with its backups, the held-back judged commands) and `restore`;
   - the command line (every usage error and exit code), the package files, the workflows and the README: its sections, commands, flags and usage block, and the numbers it quotes from the code.
-- **54 checks against the real binary** (`test/e2e-*.test.mjs` and `test/auto-oracle.test.mjs`, run when `E2E_CLAUDE` names a Claude Code binary). Each starts a fake Messages API on 127.0.0.1, so no model is reached and no token is spent. Each has its own throwaway `HOME`, `USERPROFILE` and `CLAUDE_CONFIG_DIR` and a project folder that Claude Code already trusts. All 54 passed on 2.1.295 and on 2.1.299 on Windows. In CI on Linux and macOS with 2.1.301, 52 of them ran (two are for the Windows PowerShell tool) and passed. The findings below were the same on both versions unless a bullet says otherwise:
-  - **The decisions** (`e2e-claude.test.mjs`, 24 scenarios, each one `claude -p` run). The fields the transcript carries for a read-only command, an exact allow rule from the user's file (`source` `user_permanent`), the same rule from the project's file (`config`), a prefix rule (still `subcommandResults`: it skips the classifier), a deny rule, an ask rule (`claude -p` refuses it as user-rejected), a file write and a `touch` approved by the mode, a hook that allows and one that denies, a removal of a critical path (`safetyCheck`), `dontAsk` mode, and the classifier: allowed after one request (stage one is sure) and after two, refused with a category and without one, a severity of 50 (refused: 50 is on the block side), the third refusal in a row, a classifier that answers text that is not a verdict (ten requests, then "could not evaluate"), a model that answers 529 (ten requests, then "temporarily unavailable"), a second stage that fails. The JSON result lists a refused call under `permission_denials` and an approved one does not. The server's review (not flagged, flagged, skipped) is played by the fake API; see "Not verified". `report` said the source and result of each line that the scenario says.
+- **56 checks against the real binary** (`test/e2e-*.test.mjs` and `test/auto-oracle.test.mjs`, run when `E2E_CLAUDE` names a Claude Code binary; 54 until 1.4.0). Each starts a fake Messages API on 127.0.0.1, so no model is reached and no token is spent. Each has its own throwaway `HOME`, `USERPROFILE` and `CLAUDE_CONFIG_DIR` and a project folder that Claude Code already trusts. All 54 passed on 2.1.295 and on 2.1.299 on Windows. In CI on Linux and macOS with 2.1.301, 52 of them ran (two are for the Windows PowerShell tool) and passed. The findings below were the same on both versions unless a bullet says otherwise:
+  - **Claude Code 2.1.319 has no classifier of its own in the server's place.** The weekly CI run turned red on 9 November 2026 (2.1.319); side-by-side installs of every release from 2.1.316 to 2.1.328 on Windows, on 19 November, put the change at 2.1.319. Through `ANTHROPIC_BASE_URL` with an API key, 2.1.316 to 2.1.318 sent the conversation's request with the `safeguards` field, found no `safeguard_results` in the answer, wrote "auto mode classifies locally for the rest of this session" to the debug log and judged the command with the two stages below (2.1.318 also printed the billing notice). 2.1.319 and later (also 2.1.325 and 2.1.328) sent no classifier request: the debug log said "the server-side classifier does not run for this session (server_no_result) and no local one judges in its place", the call was refused with `reasonCode` `classifier:auto-mode:unavailable`, `toolDenialKind` `automode-unavailable` and "Auto mode is unavailable: its safety check does not run for this session, so Bash was not run", `claude -p` printed "Auto mode can't check actions in this session. Its safety check runs on the server, and your requests go through 127.0.0.1:<port>, which doesn't pass it through" and exited 1. A review that skipped the call, which 2.1.318 answered with "gave no verdict (it skipped this action)", became a re-check: "Bash did not run yet. The server-side auto mode classifier expected this call not to need a review, but it needs one. This is a routine re-check". `CLAUDE_CODE_AUTO_MODE_SERVER=0` made 2.1.318, 2.1.319 and 2.1.328 use their own two stages from the start, so the checks of the classifier below run with it. The documentation (permission modes, "Server-side classifier review", read on 19 November) still says that Claude Code "falls back to its own classifier requests" when the server does not review the session; the binary no longer does. `report` reads both new texts as no verdict on the server's side (`server check off`, `server re-check`) and, for the first, says what brings the check back; `cost` says its figures are those of Claude Code's own requests.
+  - **The decisions** (`e2e-claude.test.mjs`, 26 scenarios, each one `claude -p` run). The fields the transcript carries for a read-only command, an exact allow rule from the user's file (`source` `user_permanent`), the same rule from the project's file (`config`), a prefix rule (still `subcommandResults`: it skips the classifier), a deny rule, an ask rule (`claude -p` refuses it as user-rejected), a file write and a `touch` approved by the mode, a hook that allows and one that denies, a removal of a critical path (`safetyCheck`), `dontAsk` mode, and the classifier: allowed after one request (stage one is sure) and after two, refused with a category and without one, a severity of 50 (refused: 50 is on the block side), the third refusal in a row, a classifier that answers text that is not a verdict (ten requests, then "could not evaluate"), a model that answers 529 (ten requests, then "temporarily unavailable"), a second stage that fails. The JSON result lists a refused call under `permission_denials` and an approved one does not. The server's review (not flagged, flagged, skipped) is played by the fake API; see "Not verified". `report` said the source and result of each line that the scenario says. The scenarios of the classifier's own requests run with `CLAUDE_CODE_AUTO_MODE_SERVER=0` since 1.4.0 (see the next bullet); two scenarios hold 2.1.319 and later to their answers to a review that skipped the call and to an answer with no review, and the one for a skipped review on 2.1.318 and earlier is skipped on a newer binary.
   - **The sizes and the thresholds.** The classifier's requests are ordinary Messages API requests to `ANTHROPIC_BASE_URL`, with no tools and no `stream` field. Stage one goes to `claude-sonnet-5` with `max_tokens` 64 and the stop sequence `</severity>`; stage two to `claude-sonnet-5` with `max_tokens` 8,192. Both carry the same system prompt, three blocks of 74, 140,173 and 242 characters on 2.1.299 (140,489 in all; 140,387 on 2.1.295), the big one marked for caching, and the transcript as the user message. Stage one answered severities of 5 and 25: one request, and the command ran. 26, 40 and 95: two requests, the second stage decided. A classifier that answers something that is not a verdict is asked five times at each stage. A classifier model that answers 529 is asked five times, and then the session's own model five times (`max_tokens` 2,112); the refusal names the session's model, not the classifier's. So a "temporarily unavailable" message can name your model while the model that failed first was the classifier's.
   - **The `autoMode` block.** `claude auto-mode defaults` prints 17 allow, 72 soft_deny, 1 hard_deny and 21 environment rules. A list without `"$defaults"` replaces the built-in rules of its section in the classifier's prompt: the prompt lost 8,019, 64,833, 5,284 and 3,566 characters (allow, soft_deny, hard_deny, environment) on 2.1.299 and 8,019, 64,731, 5,284 and 3,566 on 2.1.295, and with `"$defaults"` in the list they stayed (the prompt grew by 11 characters, the marker line). An empty list changes nothing, and a second `"$defaults"` adds nothing. The block is read from the user's `settings.json` and from the `--settings` flag, and not from the project's or the local file; two sources add their entries. `claude auto-mode config` agreed with `show --json` on the effective lists in 12 variants of the user file (`"$defaults"` first, in the middle, last, twice, in one list and not in another).
   - **Wrong types.** 47 values (33 for `autoMode`, 8 for `permissions.disableAutoMode`, 6 for `permissions.blockReadsOutsideWorkingDirectories`), each in the user, project and local file: 141 files, each with a `model` in it as the probe. Claude Code applied the `model` of 36 of them and ignored the other 105 whole. It ignored the whole file for a value of the wrong type anywhere in the block (a string, a number, `true`, `null` or a list where an object belongs; a string, a number, `null`, an object or a list where a list or a boolean belongs; an entry that is not a string), for any `disableAutoMode` but the string `"disable"` (`true`, `false`, `"enable"` and `"Disable"` included), and for a `blockReadsOutsideWorkingDirectories` that is not `true` or `false`. The loader of this tool said the same for all 141. A key the block does not have (`softDeny`, `deny`, `unknownKey`) does not cost the file: it is read and the entry reaches nothing. A comment or a trailing comma makes Claude Code ignore the file too, the `autoMode` block in it with it (`//`, `/* */` and a trailing comma were tried); strict JSON is read.
@@ -687,13 +698,13 @@ Checked on 2026-10-16 on Windows 11 with Node 24.19.0, git 2.55.0 and Claude Cod
 
 ## Not verified
 
-- **The server's review.** The documentation describes a review that the server does as part of the model request (a `safeguards` field in the request, a `safeguard_results` field in the answer, `serverClassifierContext` on the transcript line). The shapes were read from the binary and played by the fake API; they were not seen from the real service. The three server fixtures (not flagged, flagged, skipped) are those emulations. A direct connection that the review reaches was not tried.
-- **Billing.** Who pays for the classifier requests is the documentation's account (the page is linked from `cost`). The binary printed a notice about it, saying the session was not eligible because its requests went through another host; the fake API cannot play a direct connection, and this tool cannot see an invoice.
+- **The server's review.** The documentation describes a review that the server does as part of the model request (a `safeguards` field in the request, a `safeguard_results` field in the answer, `serverClassifierContext` on the transcript line). The shapes were read from the binary and played by the fake API; they were not seen from the real service. The four server fixtures (not flagged, flagged, skipped, and 2.1.319's re-check of a skipped call) are those emulations; the fixture of an answer with no review is what 2.1.328 wrote. A direct connection that the review reaches was not tried.
+- **Billing.** Who pays for the classifier requests is the documentation's account (the page is linked from `cost`). The binary printed a notice about it, saying the session was not eligible because its requests went through another host (to 2.1.318; 2.1.319 and later say instead that auto mode can't check actions in the session); the fake API cannot play a direct connection, and this tool cannot see an invoice.
 - **Interactive sessions.** I did not drive the terminal interface or the desktop app, the VS Code extension or JetBrains. What a person is asked after three refusals in a row, what the transcript line says when they answer, the limit of 20 refusals in total that the documentation names, and the "Recently denied" list were not seen. The "asked instead" line is what a `claude -p` run wrote.
 - **Managed settings.** Their place and precedence come from the documentation. They are read, but the binary was not put to them: that needs a system folder these checks do not write to. How a managed `autoMode` list combines with the user's was not tried (two sources, the user file and `--settings`, were: the entries add). Server-managed settings, macOS profiles and the Windows registry are not read.
 - **Flags and hooks.** `show` and `why` do not read the `--settings` and `--setting-sources` flags, hooks or mods. A `PreToolUse` hook that allows a call decides before everything `why` looks at.
 - **Agent and MCP tools.** The report counts any tool whose result line carries a decision. Only Bash, PowerShell, Write and Read calls were run against the binary; what the lines of an MCP tool or a subagent's call look like was not checked.
-- **Other versions.** The local runs are Claude Code 2.1.295 and 2.1.299, the CI runs 2.1.301 on Linux and macOS. Transcripts of versions before 2.1.295 were not read. A line with no `permissionDecision` is read by the sentences of the refusals, or counted as "not recorded"; that was tested with written transcripts, not recorded ones. The classifier's prompt, its built-in rules, the thresholds and the list of dropped allow rules change between releases; the figures are those of 2.1.299 and the lint quotes the version.
+- **Other versions.** The local runs are Claude Code 2.1.295 and 2.1.299, and, for the change of 2.1.319, every release from 2.1.316 to 2.1.328 on Windows; the CI runs 2.1.301 on Linux and macOS at first and the newest release each week. Transcripts of versions before 2.1.295 were not read. A line with no `permissionDecision` is read by the sentences of the refusals, or counted as "not recorded"; that was tested with written transcripts, not recorded ones. The classifier's prompt, its built-in rules, the thresholds and the list of dropped allow rules change between releases; the figures are those of 2.1.299 and the lint quotes the version.
 - **Linux and macOS** are covered by CI only; nothing was run on either by hand. Table rows that differ there are recorded in the table as `posix` rows.
 - **The PowerShell tool.** The 82 PowerShell rows ran on one Windows 11 machine with the tool switched on. The tool offers PowerShell rules and PowerShell commands the same way, but it is not as well covered as Bash.
 - **Providers.** Claude Code through Bedrock or Vertex, or behind a gateway, may route the classifier differently. Only `ANTHROPIC_BASE_URL` with an API key was tried.

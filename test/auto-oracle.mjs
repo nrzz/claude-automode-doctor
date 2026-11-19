@@ -13,7 +13,7 @@
 // names a path outside the throwaway folders that a mistake could damage.
 import fs from "node:fs";
 import path from "node:path";
-import { callsOf, fakeApi, put, runAuto, sandbox } from "./claude-sandbox.mjs";
+import { OWN_CLASSIFIER, callsOf, fakeApi, put, runAuto, sandbox } from "./claude-sandbox.mjs";
 import { world } from "./helpers.mjs";
 import { loadSettings } from "../src/settings.mjs";
 import { whyCommand } from "../src/why.mjs";
@@ -42,7 +42,9 @@ export async function askAuto(row, { timeout = 120000 } = {}) {
   const tool = r.tool || "Bash";
   const api = await fakeApi({ calls: [{ tool, input: tool === "Bash" || tool === "PowerShell" ? { command: r.command } : r.input }], stage1: r.stage1 ?? 95, stage2: r.stage2 ?? 95 });
   try {
-    const env = tool === "PowerShell" ? { CLAUDE_CODE_USE_POWERSHELL_TOOL: "1", CLAUDE_CODE_GIT_BASH_PATH: "C:/nonexistent/bash.exe", ...(r.env || {}) } : r.env || {};
+    // Claude Code's own classifier, so that a row that reaches the check is refused by it (2.1.319 and later make those requests
+    // only with CLAUDE_CODE_AUTO_MODE_SERVER=0); the decision order that sends a call to the check is the same either way
+    const env = { ...OWN_CLASSIFIER, ...(tool === "PowerShell" ? { CLAUDE_CODE_USE_POWERSHELL_TOOL: "1", CLAUDE_CODE_GIT_BASH_PATH: "C:/nonexistent/bash.exe", ...(r.env || {}) } : r.env || {}) };
     const run = await runAuto(sb, api, "run it", ["--max-turns", "2", ...(r.args || [])], { env, timeout });
     const calls = callsOf(sb);
     const call = calls[0] || null;

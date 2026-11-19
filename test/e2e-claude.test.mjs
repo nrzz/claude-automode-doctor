@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, run } from "./helpers.mjs";
 import { claudeInfo, claudeSync, fakeApi, put, runClaude, sandbox, severity, skip, stage2, systemText, textBlocks, userText } from "./claude-sandbox.mjs";
-import { SCENARIOS, finishScenario, runScenario } from "./scenarios.mjs";
+import { SCENARIOS, finishScenario, outOfRange, runScenario } from "./scenarios.mjs";
 import { buildReport } from "../src/aggregate.mjs";
 import { MEASURED } from "../src/measured.mjs";
 
@@ -45,7 +45,7 @@ test("claude plugin validate accepts the plugin, also with --strict", { skip: sk
 // ---- (a) the decisions ----------------------------------------------------------------------------------------------------------
 
 for (const sc of SCENARIOS) {
-  test(`scenario ${sc.name}: ${sc.about}`, { skip: skip(), timeout: sc.slow ? 240000 : 150000 }, async () => {
+  test(`scenario ${sc.name}: ${sc.about}`, { skip: skip() || outOfRange(sc), timeout: sc.slow ? 240000 : 150000 }, async () => {
     const r = await runScenario(sc);
     try {
       const e = sc.expect;
@@ -57,6 +57,9 @@ for (const sc of SCENARIOS) {
       assert.equal(c.decision && c.decision.source, e.permSource, "permissionDecision.source");
       assert.equal(c.decision && (c.decision.reasonType ?? null), e.reasonType, "permissionDecision.reasonType");
       assert.equal(c.kind, e.kind, "toolDenialKind");
+      if (e.reasonCode) assert.equal(c.decision && c.decision.reasonCode, e.reasonCode, "permissionDecision.reasonCode");
+      if (e.exit !== undefined) assert.equal(r.run.code, e.exit, `the exit code of claude -p: ${r.run.err.slice(0, 300)}`);
+      if (e.stderr) assert.match(r.run.err, e.stderr, "what claude -p printed");
       assert.equal(c.classifierBoundary, e.boundary, "classifierBoundary");
       assert.equal(c.serverReview, e.server, "serverClassifierContext");
       if (e.text) assert.match(c.text, e.text, "what the model was told");

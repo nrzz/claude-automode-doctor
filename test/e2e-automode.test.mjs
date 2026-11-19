@@ -10,7 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { run, world } from "./helpers.mjs";
-import { callsOf, claudeInfo, claudeSync, fakeApi, put, readLog, recorder, runClaude, sandbox, severity, skip, stage2, stageOf, systemText, transcriptLines } from "./claude-sandbox.mjs";
+import { OWN_CLASSIFIER, callsOf, claudeInfo, claudeSync, fakeApi, put, readLog, recorder, runClaude, sandbox, severity, skip, stage2, stageOf, systemText, transcriptLines } from "./claude-sandbox.mjs";
 import { MEASURED } from "../src/measured.mjs";
 import { loadSettings } from "../src/settings.mjs";
 
@@ -19,13 +19,14 @@ const ROUTINE = bash("mytool deploy --prod");
 // the Claude Code versions this file's findings were recorded on; a newer one has to agree where it says so, and the CI log shows where it does not
 const RECORDED = ["2.1.299", "2.1.295"];
 
-/** Run one classified command with these settings and say what the classifier was sent. */
+/** Run one classified command with these settings and say what the classifier was sent: Claude Code's own classifier requests
+ * (CLAUDE_CODE_AUTO_MODE_SERVER=0), which 2.1.319 and later make only with that variable through ANTHROPIC_BASE_URL. */
 async function classified(label, { user, project, local, args = [], calls = [ROUTINE], stage1 = severity(5), stage2: s2 } = {}) {
   const sb = sandbox(label);
   for (const [name, value] of [["user", user], ["project", project], ["local", local]]) if (value !== undefined) put(sb[name], value);
   const api = await fakeApi({ calls, stage1, stage2: s2 });
   try {
-    const r = await runClaude(sb, api, ["-p", "run it", "--output-format", "json", "--permission-mode", "auto", "--max-turns", "2", ...args]);
+    const r = await runClaude(sb, api, ["-p", "run it", "--output-format", "json", "--permission-mode", "auto", "--max-turns", "2", ...args], { env: OWN_CLASSIFIER });
     const cls = api.classifier();
     return { sb, r, cls, prompt: cls[0] ? systemText(cls[0]) : null };
   } finally { await api.close(); }

@@ -20,8 +20,11 @@ export const SOURCES = ["static", "mode", "rule", "classifier", "hook", "safety"
 export const ASKED_INSTEAD = "asked instead (repeated blocks)";
 
 // The texts of a classifier that gave no verdict. Each is a sentence Claude Code puts in front of the model; the first
-// five were seen on 2.1.299 by making a fake API fail in each way, the last two are quoted from the documentation.
+// two were seen on 2.1.319 and later (a fake API that gives no review, and one whose review skips the call), the next
+// five on 2.1.299 by making a fake API fail in each way, the last two are quoted from the documentation.
 const NO_VERDICT = [
+  { re: /Auto mode is unavailable: its safety check does not run for this session/, cause: "server-off", service: true, via: "server" },
+  { re: /The server-side auto mode classifier expected this call not to need a review, but it needs one/, cause: "server-recheck", service: true, via: "server" },
   { re: /is temporarily unavailable(?: \(([^)]+)\))?, so auto mode cannot determine the safety of/, cause: "unavailable", service: true },
   { re: /The server-side auto mode classifier gave no verdict(?: \(([^)]+)\))?/, cause: "server-no-verdict", service: true },
   { re: /Stage 2 classifier error - blocking based on stage 1 assessment/, cause: "stage-two-error", service: true },
@@ -32,6 +35,8 @@ const NO_VERDICT = [
 ];
 
 export const NO_VERDICT_CAUSES = {
+  "server-off": "the server's check did not run for this session, and from Claude Code 2.1.319 nothing judges in its place (a gateway or proxy that does not pass the check through, for one)",
+  "server-recheck": "the server's review expected the call not to need one and asked for it again (Claude Code 2.1.319 and later)",
   unavailable: "the classifier model was unavailable",
   "server-no-verdict": "the server's review gave no verdict",
   "stage-two-error": "the second stage of the classifier failed",
@@ -58,7 +63,7 @@ export function refusalReason(text) {
 export function noVerdict(text) {
   for (const n of NO_VERDICT) {
     const m = n.re.exec(text);
-    if (m) return { cause: n.cause, service: n.service, detail: m[1] || null };
+    if (m) return { cause: n.cause, service: n.service, detail: m[1] || null, ...(n.via ? { via: n.via } : {}) };
   }
   return null;
 }

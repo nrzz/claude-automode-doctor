@@ -4,6 +4,13 @@ All notable changes to claude-automode-doctor are written here. The format follo
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-19
+
+- `report` reads what Claude Code 2.1.319 and later write when auto mode's check gives no verdict. "Auto mode is unavailable: its safety check does not run for this session" means the answer carried no review from the server, as through a gateway or proxy that does not pass the check through (`server check off`). "The server-side auto mode classifier expected this call not to need a review, but it needs one. This is a routine re-check" is a review that skipped the call (`server re-check`). Both count as no verdict on the server's side; before, the first was called "the classifier model was unavailable" and counted as Claude Code's own requests. For the first, the text report says that 2.1.319 no longer falls back to classifier requests of its own and what brings the check back: the gateway passing `safeguards` and `safeguard_results` through, or `CLAUDE_CODE_AUTO_MODE_SERVER=0`.
+- `cost` says that its figures are those of Claude Code's own classifier requests, which 2.1.319 and later make only with `CLAUDE_CODE_AUTO_MODE_SERVER=0`, and where what the binary did differs from the documentation's account of who pays.
+- The real-binary checks follow Claude Code 2.1.319. Side-by-side installs of every release from 2.1.316 to 2.1.328 put the change at 2.1.319; the weekly run had been red on Linux and macOS since 9 November. The checks of the classifier's own requests run with `CLAUDE_CODE_AUTO_MODE_SERVER=0`, and two new scenarios, with fixtures recorded from 2.1.328, hold 2.1.319 and later to their answers to no review and to a skipped review. The two Windows-only plugin checks accept what Claude Code does now: a skill whose command is not allowed ends the turn with no request (2.1.302; from 2.1.318 the result names the command), and the line "Shell cwd was reset to ..." that Claude Code appends after a skill's output on Windows is not counted as a line of the report.
+- The README's test count is the runner's: 211 automated tests (218 with the 7 helper files), 155 passing on Windows and 154 on Linux and macOS without a binary, and 56 real-binary checks.
+
 ## [1.3.0] - 2026-10-29
 
 - `why` takes `--file <path>`: commands are read from a text file, one per line (blank lines and `#` comments skipped; LF or CRLF), before any given on the command line. A file that cannot be read, or holds no command, is a usage error.
@@ -38,6 +45,7 @@ All notable changes to claude-automode-doctor are written here. The format follo
 - When the classifier's model answers "overloaded", Claude Code asks it five times and then your session's own model five times, and the refusal names the session's model. `cost` says so.
 - Zero tokens for the tool. The skill is user-only, adds nothing to a request that does not use it, and hands the model a report of at most 17 lines.
 
+[1.4.0]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.4.0
 [1.3.0]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.2.0
 [1.1.1]: https://github.com/nrzz/claude-automode-doctor/releases/tag/v1.1.1
